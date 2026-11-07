@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mathias 2014">
-<script>window.__PWA__ = true; window.__BUILD__ = '76e8261fcb'; window.__BUILT__ = '2026-11-06 19:57';</script>
+<script>window.__PWA__ = true; window.__BUILD__ = '3e0f76fd96'; window.__BUILT__ = '2026-11-07 16:06';</script>
 <style>[hidden]{display:none!important} body{margin:0} header{top:0 !important; padding-top:env(safe-area-inset-top,0px)}</style>
 </head>
 <body>
@@ -788,6 +788,25 @@ html:not(.gn-beast) .gnb, html:not(.gn-tree) .gnt{ display:none !important; }
 .hpadj-now.m b:last-of-type, .hpst b small.hpadj.m{ color:hsl(2 70% 72%); }
 .hpadj-now.p b:last-of-type, .hpst b small.hpadj.p{ color:hsl(140 45% 68%); }
 .hpst b small.hpadj{ font-weight:700; }
+/* U14 (shared/spelluse.js): the spell card's "Kullan" part: slot level chips (the level's hue), the upcast line, use buttons */
+.cast{ margin:14px 0 2px; padding:10px 12px 12px; display:grid; gap:8px; border:1px solid color-mix(in oklab, hsl(var(--h, 215) 38% 58%) 45%, var(--line)); border-radius:14px; background:color-mix(in oklab, hsl(var(--h, 215) 40% 45%) 8%, var(--surface)); }
+.cast h3{ margin:0; font-size:1rem; letter-spacing:.02em; }
+.cast .note{ margin:0; }
+.cast-lv{ display:flex; flex-wrap:wrap; gap:6px; }
+.cast-lv button{ display:grid; gap:1px; justify-items:center; min-height:46px; min-width:62px; padding:4px 10px; border-radius:10px; border:1px solid color-mix(in oklab, hsl(var(--lh, 215) 45% 62%) 60%, var(--line)); background:var(--surface); color:var(--ink); line-height:1.15; font-variant-numeric:tabular-nums; }
+.cast-lv button b{ font-size:.95rem; }
+.cast-lv button small{ font-size:.78rem; color:var(--muted); }
+.cast-lv button.on{ border-width:2px; padding:3px 9px; background:color-mix(in oklab, hsl(var(--lh, 215) 50% 50%) 28%, var(--surface)); box-shadow:0 0 0 1px color-mix(in oklab, hsl(var(--lh, 215) 55% 65%) 40%, transparent); }
+.cast-lv button.on small{ color:var(--ink); }
+.cast-lv button[disabled]{ opacity:.45; cursor:not-allowed; }
+.cast-lv button[disabled] small{ text-decoration:line-through; }
+.cast-up{ margin:0; padding:8px 10px; border-radius:10px; border-left:3px solid hsl(var(--lh, 215) 50% 62%); background:color-mix(in oklab, hsl(var(--lh, 215) 40% 45%) 12%, var(--bg)); font-size:.92rem; overflow-wrap:anywhere; }
+.cast-up .cu-v{ color:hsl(var(--lh, 215) 60% 80%); }
+.cast-up small{ color:var(--muted); }
+.cast-go{ min-height:48px; border-radius:12px; padding:10px 12px; font-weight:700; background:var(--acc); color:var(--acc-ink); }
+.cast-go[disabled]{ background:var(--line); color:var(--muted); cursor:not-allowed; }
+.cast-alt{ min-height:44px; border-radius:12px; padding:8px 12px; font-weight:600; border:1px solid var(--acc); color:var(--acc); background:transparent; }
+.cast-why{ margin:0; color:var(--warn); font-size:.9rem; }
 
 </style>
 
@@ -10643,6 +10662,9 @@ const SLOTS = (() => {
     // mark the first unused slot of a level as spent (Combat Wild Shape, Polymorph)
     spend(l) { const r = st.u[l - 1], i = r ? r.indexOf(0) : -1; if (i < 0) return false; r[i] = 1; save(); return true; },
     refresh() { for (const c of document.querySelectorAll('.slots')) c.outerHTML = this.html(); },
+    // U14: a spell's slotless uses (by its English name), one per feat, and spending one
+    frees(en) { return FREE.map((f, i) => f[0] === en ? { k: 'f' + i, src: f[1], left: st.f[i] ? 0 : 1, total: 1 } : null).filter(Boolean); },
+    useFree(k) { const i = +k.slice(1); if (!(i in st.f) || st.f[i]) return false; st.f[i] = 1; save(); return true; },
   };
 })();
 
@@ -10806,6 +10828,8 @@ const SP = (() => {
       state.sel.push(id); save(); return `${s.en} hazırlandı · ${count()}/${state.limit}`;
     },
     clear() { state.sel = []; save(); },
+    // U14: a leveled spell is cast with a slot when it is prepared (or always prepared)
+    castReady: id => isSel(id),
     limit(d) { state.limit = Math.max(1, Math.min(30, state.limit + d)); save(); },
     fill(id) {
       const s = BY[id], on = isSel(id);
@@ -10831,6 +10855,7 @@ const SP = (() => {
         <div class="desc">${s.d}</div>
         <div class="src">Kaynak: ${esc(noEd(s.src))}</div>
         ${id === 'guardian-of-nature' ? `<p class="note gn-pick">Formu büyüyü yaparken seçersin; etkileri konsantrasyon sürdükçe Karakter sayfasında ve <span lang="en">Wild Shape</span> formlarının satırlarında görünür.</p>` : ''}
+        ${SPELLUSE.block(s, CAST, esc)}
         <div class="act${s.conc ? ' two' : ''}">${btn}${s.conc ? (CONC.id === id ? `<button class="sec2 conc-b on" data-conc="end">Konsantrasyonu bitir${id === 'guardian-of-nature' ? ` (${GN_NAME[CONC.gn]})` : ''}</button>`
           : id === 'guardian-of-nature' ? `<button class="sec2 conc-b" data-conc="${id}" data-gn="beast">Başlat: <span lang="en">Primal Beast</span></button><button class="sec2 conc-b" data-conc="${id}" data-gn="tree">Başlat: <span lang="en">Great Tree</span></button>`
           : `<button class="sec2 conc-b" data-conc="${id}">Konsantrasyon başlat</button>`) : ''}</div>`;
@@ -10839,6 +10864,34 @@ const SP = (() => {
   };
   return C;
 })();
+
+// U14 (D62): the spell card's "Kullan" part (shared/spelluse.js): a slot of the chosen level, the slotless uses; a
+// concentration spell starts concentration
+const CAST = {
+  max: SLOTS.max, left: l => SLOTS.left(l), spend: l => SLOTS.spend(l),
+  ready: s => SP.castReady(s.id) || 'Slotla kullanmak için önce hazırla.',
+  free: s => SLOTS.frees(s.en), useFree: k => SLOTS.useFree(k),
+  res: () => null, useRes: () => false,
+  forms: s => s.id === 'guardian-of-nature' ? [{ f: 'beast', label: GN_NAME.beast }, { f: 'tree', label: GN_NAME.tree }] : null,
+  concId: () => CONC.id, setConc: (id, f) => setConc(id, f || undefined),
+  spell: id => SP.BY[id], name: id => (SP.BY[id] || { en: id }).en,
+  ask: (q, cb, y) => ask(q, cb, y), toast: m => toast(m),
+  redraw: () => castRedraw('.cast-lv .on'),
+  after(id) {
+    SLOTS.refresh();
+    if (tab === 'ws' && WS.sub === 'act') WS.renderAct();
+    syncChrome();
+    if (SUM.has(id) && CONC.id === id) return sheetSwap(SUM, '@' + id);
+    castRedraw('.cast-go:not([disabled])');
+  },
+};
+// the open spell card drawn again where it was (its scroll kept), focus on `sel`
+function castRedraw(sel) {
+  if (!openRef || openRef.c !== SP) return;
+  const inn = $('#sheetIn'), y = inn.scrollTop;
+  inn.innerHTML = SP.fill(openRef.id); inn.scrollTop = y;
+  focusQuiet(inn.querySelector(sel) || inn.querySelector('.cast h3') || inn.querySelector('[data-close]'));
+}
 
 /* =====================================================================
    Wild Shape
@@ -12140,6 +12193,148 @@ const HPMAX = (() => {
   return { parse, txt, max, set, block, act };
 })();
 
+/* U14 (D62): the "Kullan" part of a leveled spell's card, shared by the character apps (the builds inline it after
+   shared/hpmax.js). As in the APK (character-builder/app/src/CastingView.tsx): a slot level from the spell's own level up
+   to the highest the character has (a level with no slot left is shown but cannot be picked), "Kullan" spends one slot of
+   it in the app's slot state (the slot card shows it at once and it is saved), a concentration spell starts concentration
+   (asking first when another spell is concentrated on), and the slotless uses a feature gives (Fey Touched, Magic
+   Initiate, Paladin's Smite …) or a resource use (Wild Companion: a Wild Shape use) each have their own button.
+   Beyond the APK: under the chooser one line says how the effect changes at the chosen level, from the spell's own data
+   (its effect box `fx` and the "Üst slot:" text of its description); no other text is added.
+   The app gives an adapter:
+     max: slots per level ([4, 3, 3 …]); left(l); spend(l) → bool
+     ready(s) → true | a note (the spell is not prepared / known: no slot casting)
+     free(s) → [{ k, src, left, total }]; useFree(k) → bool
+     res(s) → { name, left, total } | null; useRes(s) → bool
+     forms(s) → [{ f, label }] | null (a spell whose form is chosen when cast: Guardian of Nature)
+     concId(), setConc(id, form), spell(id), name(id), ask(q, cb, yes), toast(m), redraw(), after(id) */
+const SPELLUSE = (() => {
+  const pick = {};
+  const plain = (h) => String(h || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  // the description's higher-level text: after "Üst slot:" up to the next italic note
+  function upText(s) {
+    const d = String(s.d || ''), m = d.match(/<i>\s*Üst slot:?\s*<\/i>:?/);
+    if (!m) return '';
+    let t = d.slice(m.index + m[0].length);
+    const j = t.search(/<i>/); if (j >= 0) t = t.slice(0, j);
+    return plain(t).replace(/[\s.]+$/, '');
+  }
+  // "[N. seviyenin üzerindeki] her [2 | iki] seviye için <what>": the base level, the step and what each step adds
+  function perLevel(s) {
+    const t = upText(s), m = t.match(/^(?:(\d+)\. seviyenin üzerindeki )?her (?:(\d+|iki) )?seviye için (.+)$/);
+    if (!m) return null;
+    return { base: m[1] ? +m[1] : s.lvl, step: m[2] ? (m[2] === 'iki' ? 2 : +m[2]) : 1, what: m[3] };
+  }
+  // what k steps add: every "+N" / "+NdM" times k; a parenthesis that lists the totals per level is dropped
+  const times = (what, k) => what.replace(/\s*\([^)]*\d+\. sv[^)]*\)/g, '').replace(/\+(\d+)(d\d+)?/g, (_, n, d) => `+${n * k}${d || ''}`);
+  const TYPES = /^(Acid|Bludgeoning|Cold|Fire|Force|Lightning|Necrotic|Piercing|Poison|Psychic|Radiant|Slashing|Thunder)$/;
+  // the effect box with what k steps add, where its values allow it: a die of the same size (one, the first with "ilk",
+  // each with "her iki" / "tüm hasarlar"; with a damage type before it, the dice of that type) or a number after the same
+  // word ("CR +1" → "CR 5"; "+5" → "+5 …"); null when one of the additions has no unique place
+  // the number of one match of rx (outside parentheses) raised by add: the only one ('one'), the first, or each ('all');
+  // null when there is no such place (or several, for 'one')
+  function bump(out, rx, add, which) {
+    const par = [...out.matchAll(/\([^)]*\)/g)].map((m) => [m.index, m.index + m[0].length]);
+    const hits = [...out.matchAll(rx)].filter((m) => !par.some(([a, b]) => m.index >= a && m.index < b));
+    if (!hits.length || (hits.length > 1 && which === 'one')) return null;
+    let res = '', at = 0;
+    for (const m of which === 'all' ? hits : [hits[0]]) { res += out.slice(at, m.index) + m[0].replace(m[1], String(+m[1] + add)); at = m.index + m[0].length; }
+    return res + out.slice(at);
+  }
+  const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function scaled(fx, what, k) {
+    if (!fx) return null;
+    const which = /her iki|tüm hasar/.test(what) ? 'all' : /\bilk\b/.test(what) ? 'first' : 'one';
+    const re = /(?:(\S+)\s+)?\+(\d+)(?:d(\d+))?(?:\s+(\S+))?/g;
+    let out = fx, any = false;
+    for (let m; (m = re.exec(what)); ) {
+      const [, before, n, die, after] = m, add = +n * k;
+      let rx;
+      if (die) rx = new RegExp(`(\\d+)d${die}(?!\\d)${before && TYPES.test(before) ? ` ${before}` : ''}`, 'g');
+      else {
+        const word = after && /^[A-Za-zÇĞİÖŞÜçğıöşü]/.test(after) ? after.replace(/[.,;:)]+$/, '') : null;
+        rx = new RegExp(word ? `(\\d+)(?![\\dd]) ${reEsc(word)}` : before && /^[A-Za-zÇĞİÖŞÜçğıöşü]/.test(before) && !/^(ve|ya|da)$/.test(before) ? `${reEsc(before)} (\\d+)(?![\\dd])` : '\\+(\\d+)(?![\\dd])', 'g');
+      }
+      const next = bump(out, rx, add, die ? which : 'one');
+      if (next !== null) { out = next; any = true; }
+    }
+    return any ? out : null;
+  }
+  // the line under the chooser for level L (HTML; the values come from the spell's own data)
+  function upLine(s, L, esc) {
+    const lab = `<b>${L}. seviye</b>`;
+    if (L <= s.lvl) return `${lab} (büyünün kendi seviyesi): ek etki yok.`;
+    const r = perLevel(s), t = upText(s);
+    if (r) {
+      const k = Math.floor((L - r.base) / r.step);
+      if (k <= 0) return `${lab}: bu seviyede ek etki yok <small>(üst slot: ${esc(r.what)})</small>`;
+      // the effect box without its own note on slot levels ("+1d8 / slot seviyesi"): the line gives the value itself
+      const add = times(r.what, k), fx = s.fx && scaled(s.fx[1].replace(/\s*\([^)]*slot[^)]*\)/g, ''), r.what, k);
+      return fx ? `${lab} · ${esc(s.fx[0])}: <b class="cu-v">${esc(fx)}</b> <small>(${esc(add.replace(/\s*\(([^)]*)\)/g, '; $1'))})</small>` : `${lab}: <b class="cu-v">${esc(add)}</b>`;
+    }
+    // a tiered text starts with its first level ("3. veya 4. seviye …", "5–6. seviyede …", "6.’da …"): nothing below it
+    const first = t.match(/^(\d+)(?:\.|–)/);
+    if (t && first && L < +first[1]) return `${lab}: bu seviyede ek etki yok <small>(üst slot: ${esc(t)})</small>`;
+    if (t) return `${lab} · üst slot: ${esc(t)}`;
+    return `${lab}: üst slotla etkisi değişmez.`;
+  }
+  // the levels a spell can be cast at: every level from its own up to the highest the character has slots of
+  const levels = (s, A) => A.max.map((n, i) => ({ l: i + 1, total: n, left: A.left(i + 1) })).filter((o) => o.l >= s.lvl && o.total > 0);
+  const chosen = (s, A) => { const os = levels(s, A).filter((o) => o.left > 0); return os.find((o) => o.l === pick[s.id]) || os[0] || null; };
+  function block(s, A, esc) {
+    if (!s || !(s.lvl > 0)) return '';
+    const ready = A.ready(s), opts = levels(s, A), ch = ready === true ? chosen(s, A) : null, forms = A.forms(s) || [null];
+    let body;
+    if (ready !== true) body = `<p class="note" data-cast-note="ready">${ready}</p>`;
+    else if (!opts.length) body = `<p class="cast-why" data-cast-why="no-level">Bu seviyede ya da üstünde büyü slotun yok.</p><button class="cast-go" disabled data-cast-none>Boş slot yok</button>`;
+    else {
+      const L = ch ? ch.l : (opts.find((o) => o.l === pick[s.id]) || opts[0]).l;
+      body = `<div class="cast-lv" role="group" aria-label="Slot seviyesi">${opts.map((o) => `<button type="button" data-l="${o.l}" data-cast="lvl|${s.id}|${o.l}"${ch && o.l === ch.l ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}${o.left > 0 ? '' : ' disabled'} aria-label="${o.l}. seviye slot, ${o.left}/${o.total} kaldı"><b>${o.l}. sv</b><small>${o.left}/${o.total}</small></button>`).join('')}</div>
+        <p class="cast-up" data-l="${L}" data-up="${L}">${upLine(s, L, esc)}</p>`
+        + (ch ? forms.map((f) => `<button type="button" class="cast-go" data-cast="slot|${s.id}|${ch.l}|${f ? f.f : ''}">${ch.l}. seviye slotla kullan${ch.l > s.lvl ? ' (üst seviye)' : ''}${f ? ` · <span lang="en">${esc(f.label)}</span>` : ''}</button>`).join('')
+          : `<p class="cast-why" data-cast-why="none-left">Boş slot kalmadı: ${s.lvl}. seviyede ya da üstünde harcanmamış slotun yok (slotlar uzun dinlenmede yenilenir).</p><button class="cast-go" disabled data-cast-none>Boş slot yok</button>`);
+    }
+    const free = (A.free(s) || []).map((x) => forms.map((f) => (x.left > 0
+      ? `<button type="button" class="cast-alt" data-cast="free|${s.id}|${x.k}|${f ? f.f : ''}">Slotsuz kullan · <span lang="en">${esc(x.src)}</span> (${x.left}/${x.total})${f ? ` · <span lang="en">${esc(f.label)}</span>` : ''}</button>`
+      : `<p class="note" data-free-used>${f && f !== forms[0] ? '' : `<span lang="en">${esc(x.src)}</span> hakkı kullanıldı; uzun dinlenmede yenilenir.`}</p>`)).join('')).join('');
+    const r = A.res(s);
+    const res = r ? (r.left > 0 ? `<button type="button" class="cast-alt" data-cast="res|${s.id}||">${esc(r.name)} hakkıyla kullan (${r.left}/${r.total})</button>` : `<p class="note" data-res-used><span lang="en">${esc(r.name)}</span> hakkı kalmadı; dinlenmede yenilenir.</p>`) : '';
+    return `<section class="cast" data-cast-panel><h3>Kullan</h3>${body}${free}${res}${s.conc ? '<p class="note">Konsantrasyon gerektirir: kullanınca başlar.</p>' : ''}</section>`;
+  }
+  function act(arg, A, esc) {
+    const [kind, id, x, f] = arg.split('|'), s = A.spell(id);
+    if (!s) return;
+    if (kind === 'lvl') { pick[id] = +x; return A.redraw(); }
+    const form = f || null, old = s.conc ? A.concId() : null;
+    const run = () => {
+      let msg;
+      if (kind === 'slot') {
+        const L = +x;
+        if (!A.spend(L)) { A.toast(`${L}. seviye slotun kalmadı. Slot harcanmadı.`); return A.redraw(); }
+        msg = `${s.en} ${L}. seviye slotla kullanıldı · ${A.left(L)}/${A.max[L - 1]} kaldı`;
+      } else if (kind === 'free') {
+        const v = (A.free(s) || []).find((o) => o.k === x);
+        if (!v || !A.useFree(x)) { A.toast('Bu hakkı kullandın; uzun dinlenmede yenilenir.'); return A.redraw(); }
+        msg = `${s.en} slotsuz kullanıldı (${v.src})`;
+      } else if (kind === 'res') {
+        const r = A.res(s);
+        if (!r || !A.useRes(s)) { A.toast(`${r ? r.name : 'Bu'} hakkı kalmadı; dinlenmede yenilenir.`); return A.redraw(); }
+        msg = `${s.en} kullanıldı (${r.name}: 1 hak harcandı)`;
+      } else return;
+      if (s.conc) {
+        const fl = form && (A.forms(s) || []).find((o) => o.f === form);
+        A.setConc(id, form);
+        msg += ` · konsantrasyon başladı${fl ? ` (${fl.label})` : ''}${old && old !== id ? ` · ${A.name(old)} bitti` : ''}`;
+      }
+      A.toast(msg);
+      A.after(id);
+    };
+    if (old && old !== id) return A.ask(`Şu an <b lang="en">${esc(A.name(old))}</b> için konsantrasyondasın. <b lang="en">${esc(s.en)}</b> kullanılırsa <b>mevcut konsantrasyonun bozulacak</b>. Devam edilsin mi?`, run, 'Evet, kullan');
+    run();
+  }
+  return { block, act, upLine, upText, levels, pick };
+})();
+
 // H7d (D55): the conditions and Primal Strike in their 2014 wording in this copy (shared/glossary.js writes the 2024 rules;
 // the other conditions read the same in both)
 for (const [id, t] of Object.entries({
@@ -12890,7 +13085,8 @@ document.addEventListener('click', e => {
     if (a || !e.target.closest('.ask-box')) closeAsk(!!a && a.dataset.ask === 'yes');
     return;
   }
-  const t = e.target.closest('[data-portrait],[data-pick],[data-open],[data-gold],[data-f],[data-mv],[data-close],[data-lim],[data-clear],[data-tab],[data-sub],[data-inv],[data-backup],[data-install],[data-update],[data-hpopen],[data-hp],[data-hpadj],[data-acopen],[data-slot],[data-conc],[data-rest],[data-cws],[data-shift],[data-act],[data-wsfloat],[data-sum],[data-sumf],[data-basis],[data-wz],#scrim');
+  const t = e.target.closest('[data-portrait],[data-pick],[data-open],[data-gold],[data-f],[data-mv],[data-close],[data-lim],[data-clear],[data-tab],[data-sub],[data-inv],[data-backup],[data-install],[data-update],[data-hpopen],[data-hp],[data-hpadj],[data-acopen],[data-slot],[data-conc],[data-rest],[data-cws],[data-shift],[data-act],[data-wsfloat],[data-sum],[data-sumf],[data-basis],[data-wz],[data-cast],#scrim');
+  if (t && t.dataset.cast) return SPELLUSE.act(t.dataset.cast, CAST, esc);
   if (t && t.dataset.basis) return openSheet(RBS, t.dataset.basis);
   if (t && t.dataset.wz) return wizAction(t.dataset.wz);
   if (t && t.dataset.sumf) { SUM.filter = t.dataset.sumf; SUM.apply(); return; }
